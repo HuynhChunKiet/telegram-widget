@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Telegram Login Test</title>
+  <title>Telegram Notification Integration Test</title>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -20,8 +20,49 @@
       border-radius: 12px;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
       text-align: center;
-      max-width: 400px;
+      max-width: 420px;
       width: 100%;
+    }
+    .tabs {
+      display: flex;
+      border-bottom: 2px solid #eee;
+      margin-bottom: 20px;
+    }
+    .tab {
+      flex: 1;
+      padding: 10px;
+      cursor: pointer;
+      font-weight: 600;
+      color: #666;
+    }
+    .tab.active {
+      color: #0088cc;
+      border-bottom: 2px solid #0088cc;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    .btn-telegram {
+      display: inline-block;
+      background-color: #0088cc;
+      color: #ffffff;
+      text-decoration: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-weight: bold;
+      margin-top: 15px;
+      transition: background 0.2s;
+    }
+    .btn-telegram:hover {
+      background-color: #006699;
+    }
+    .status-text {
+      font-size: 14px;
+      color: #555;
+      margin-top: 15px;
     }
     .result-box {
       margin-top: 20px;
@@ -40,48 +81,105 @@
       color: #0088cc;
       font-size: 16px;
     }
+    .code-block {
+      background: #272822;
+      color: #f8f8f2;
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      overflow-x: auto;
+      text-align: left;
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
 
   <div class="card">
-    <h2>Connect Telegram</h2>
-    <p>Sign in with Telegram to get your Chat ID for notifications.</p>
-
-    <!-- TELEGRAM LOGIN WIDGET -->
-    <!-- Replace YOUR_BOT_USERNAME_HERE with your bot's handle -->
-    <script 
-      async 
-      src="https://telegram.org/js/telegram-widget.js?22" 
-      data-telegram-login="ePhytoTestBot" 
-      data-size="large" 
-      data-radius="8"
-      data-onauth="onTelegramAuth(user)" 
-      data-request-access="write">
-    </script>
-
-    <!-- DISPLAY RESULT -->
-    <div id="resultBox" class="result-box">
-      <p><strong>Status:</strong> Success! Connected.</p>
-      <p><strong>Your Chat ID:</strong> <span id="chatId" class="chat-id"></span></p>
-      <p><strong>Full Data Payload:</strong></p>
-      <pre id="jsonPayload"></pre>
+    <h2>Telegram Integration</h2>
+    
+    <!-- TABS NAVIGATION -->
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('deeplink')">Deep Link (Method 2)</div>
+      <div class="tab" onclick="switchTab('widget')">Widget (Method 3)</div>
     </div>
+
+    <!-- METHOD 1: DEEP LINKING (SETTINGS TOGGLE) -->
+    <div id="deeplink" class="tab-content active">
+      <p>Click below to open Telegram with a unique link token to connect notifications.</p>
+      
+      <a id="deepLinkBtn" href="#" target="_blank" class="btn-telegram">
+        Connect Telegram Bot
+      </a>
+
+      <div class="status-text" id="linkStatus">
+        Generated Link Payload: <br>
+        <span id="currentToken" style="font-family: monospace; color: #333;">Generating...</span>
+      </div>
+
+      <div class="code-block">
+        <strong>How it works:</strong><br>
+        1. Tapping above opens: <code>t.me/ePhytoTestBot?start=&lt;token&gt;</code><br>
+        2. Tap <strong>Start</strong> in Telegram.<br>
+        3. Your webhook captures <code>chat.id</code> & matches the token.
+      </div>
+    </div>
+
+    <!-- METHOD 2: LOGIN WIDGET -->
+    <div id="widget" class="tab-content">
+      <p>Sign in with Telegram using the embedded widget.</p>
+
+      <script 
+        async 
+        src="https://telegram.org/js/telegram-widget.js?22" 
+        data-telegram-login="ePhytoTestBot" 
+        data-size="large" 
+        data-radius="8"
+        data-onauth="onTelegramAuth(user)" 
+        data-request-access="write">
+      </script>
+
+      <div id="widgetResultBox" class="result-box">
+        <p><strong>Status:</strong> Success! Connected.</p>
+        <p><strong>Your Chat ID:</strong> <span id="widgetChatId" class="chat-id"></span></p>
+        <p><strong>Payload:</strong></p>
+        <pre id="widgetJsonPayload"></pre>
+      </div>
+    </div>
+
   </div>
 
   <script>
-    function onTelegramAuth(user) {
-      // 1. Extract the Chat ID / User ID
-      const chatId = user.id;
-
-      // 2. Display on page
-      document.getElementById('chatId').textContent = chatId;
-      document.getElementById('jsonPayload').textContent = JSON.stringify(user, null, 2);
-      document.getElementById('resultBox').style.display = 'block';
-
-      // 3. (In production) Send this 'user' object to your backend to verify HMAC signature
-      console.log('Authenticated Telegram User:', user);
+    // Tab Switching Logic
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      
+      event.target.classList.add('active');
+      document.getElementById(tabId).classList.add('active');
     }
+
+    // Method 1 Deep Link Setup)
+    function setupDeepLink() {
+      const botUsername = "ePhytoTestBot";
+      // Generate a random payload token (representing logged-in user in your app)
+      const token = "user101_" + Math.random().toString(36).substring(2, 9);
+      
+      const link = `https://t.me/${botUsername}?start=${token}`;
+      
+      document.getElementById('deepLinkBtn').href = link;
+      document.getElementById('currentToken').textContent = link;
+    }
+
+    // Method 2 (Widget Callback)
+    function onTelegramAuth(user) {
+      document.getElementById('widgetChatId').textContent = user.id;
+      document.getElementById('widgetJsonPayload').textContent = JSON.stringify(user, null, 2);
+      document.getElementById('widgetResultBox').style.display = 'block';
+    }
+
+    // Initialize on load
+    setupDeepLink();
   </script>
 
 </body>
